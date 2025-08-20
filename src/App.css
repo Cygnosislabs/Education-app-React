@@ -1,0 +1,130 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+.form-control:focus {
+    color: #fff;
+    border-color: #fff;
+    box-shadow: none;
+    background-color: transparent !important;
+}
+
+.botIcon {
+    display: none;
+}
+@media screen and (max-width: 768px) {
+    #isMob {
+        display: none !important;
+    }
+    .box {
+        width: 90% !important;
+        margin: 50% auto !important;
+        padding: 20px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: relative !important;
+        text-align: center; 
+    }
+    .typewriter {
+        font-size: 26px;
+    }
+    input.form-control {
+        height: 40px;
+    }
+    .form-control{
+        color: black !important;
+        border-color: #d8d8d8 !important;
+    }
+    
+}
+
+/*login page custom style starts*/
+.box {
+    border: 1px solid #007bff6b;
+    border-radius: 5px;
+    padding: 3%;
+    color: rgba(0,0,0,0.5);
+    box-shadow: 
+      0 1px 2px rgba(0,0,0,0.1),
+      0 0 0 2px #007bff6b;
+    animation: pulse 2s ease infinite;
+  }
+  
+  @keyframes pulse {
+    50% {
+      box-shadow:
+        0 1px 5px rgba(0,0,0,0.1),
+        0 0 0 6px #007bff6b;
+    }
+  }
+     
+  .typewriter {
+    overflow: hidden;
+    /* Ensures the text is not visible until animation starts */
+    border-right: 0.15em solid orange;
+    /* Creates the blinking cursor */
+    white-space: nowrap;
+    /* Keeps the text on a single line */
+    /* margin: 0 auto; */
+    /* Centers the element */
+    /* Adds a slight space between characters */
+    animation: typing 3.5s steps(42, end) infinite alternate, blink-caret 0.75s step-end infinite alternate;
+    /* Sets the animation for the typing and blinking cursor */
+  }
+  
+  @keyframes typing {
+    from {
+      width: 0;
+    }
+    /* Starts with no width */
+    to {
+      width: 100%;
+      max-width: fit-content;
+    }
+    /* Increases width to 100% */
+  }
+
+  @keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
