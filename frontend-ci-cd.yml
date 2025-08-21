@@ -21,7 +21,9 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           script: |
-            cd /path/to/Education-api
+            sudo su
+            cd /home/ec2-user/Education-api/venv_project
             git pull react master
             docker-compose build frontend
             docker-compose up -d frontend
+
