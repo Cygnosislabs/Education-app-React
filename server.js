@@ -7,11 +7,11 @@ const app = express();
 // Serve React build
 app.use(express.static(path.join(__dirname, "build")));
 
-// Proxy Flask backend routes
+// Proxy backend routes to Kubernetes Service
 app.use(
   ["/ask", "/generate", "/feedback", "/revise"],
   createProxyMiddleware({
-    target: "http://backend:5000",
+    target: "http://backend-service:5000", // 👈 fixed
     changeOrigin: true,
   })
 );
