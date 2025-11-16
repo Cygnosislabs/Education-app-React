@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect  } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Typewriter } from "react-simple-typewriter";
-
 
 export default function AskQuestion() {
   const [answer, setAnswer] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [hospitals, setHospitals] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false); // used for both operations
+  const [loadingNearby, setLoadingNearby] = useState(false); // NEW → Nearby loading
   const [inputText, setInputText] = useState("");
   const answerRef = useRef(null);
 
@@ -12,19 +14,22 @@ export default function AskQuestion() {
     setInputText(e.target.value);
   };
 
-  const handleSubmit = async (manualText) => {
-    const question = typeof manualText === "string" ? manualText : inputText;
-    if (!question.trim()) {
-      return alert("Ask something!");
-    }
+  // ---------------------------
+  // AskDoctor API
+  // ---------------------------
+  const handleSubmit = async () => {
+    if (!inputText.trim()) return alert("Please ask something!");
 
     setLoading(true);
+    setHospitals([]);
+
     try {
-      const res = await fetch("http://127.0.0.1:5000/askDoctor", {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/askDoctor`
+, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question,
+          question: inputText,
           class_name: "class 4",
           subject: "english",
           lesson: "lesson",
@@ -34,18 +39,64 @@ export default function AskQuestion() {
       const data = await res.json();
       setAnswer(data.response);
     } catch (err) {
-      console.error("API Error:", err);
-      alert("Error fetching response.");
+      alert("Error connecting to Doctora.");
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------------------------
+  // Get location
+  // ---------------------------
+  const getLocation = () => {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }),
+        (err) => reject(err)
+      );
+    });
+  };
+
+  // ---------------------------
+  // Nearby Hospitals API
+  // ---------------------------
+  const handleNearbySearch = async () => {
+    if (!inputText.trim())
+      return alert("Describe your symptom to search hospitals!");
+
+    setLoadingNearby(true);
+    setAnswer("");
+    setHospitals([]);
+
+    try {
+      const { lat, lng } = await getLocation();
+
+      const res = await fetch("http://127.0.0.1:5000/nearbyHospitals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: inputText, lat, lng }),
+      });
+
+      const data = await res.json();
+      setHospitals(data.hospitals || []);
+
+      if (data.hospitals?.length > 0) setShowModal(true);
+    } catch (err) {
+      alert("Unable to fetch nearby hospitals.");
+    } finally {
+      setLoadingNearby(false);
+    }
+  };
+
+  // Auto-scroll
   useEffect(() => {
     if (!answerRef.current) return;
 
     const observer = new MutationObserver(() => {
-      // auto scroll to bottom
       answerRef.current.scrollTop = answerRef.current.scrollHeight;
     });
 
@@ -61,16 +112,70 @@ export default function AskQuestion() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         color: "#000",
         fontFamily: "Inter, Poppins, sans-serif",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between", // keeps footer at bottom
+        justifyContent: "space-between",
         padding: "25px",
         background: "linear-gradient(to bottom, #1a1b1b, #374045, #4d585d)",
       }}
     >
+      {/* FULL SCREEN LOADING OVERLAY FOR NEARBY SEARCH */}
+      {loadingNearby && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            height: "100vh",
+            width: "100vw",
+            background: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(6px)",
+            zIndex: 9999999,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "white",
+          }}
+        >
+          <div
+            style={{
+              border: "6px solid #555",
+              borderTop: "6px solid #ff5722",
+              width: "60px",
+              height: "60px",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+            }}
+          ></div>
+
+          <p
+            style={{
+              marginTop: "20px",
+              fontSize: "18px",
+              textAlign: "center",
+              width: "80%",
+            }}
+          >
+            Searching for nearby hospitals related to your issue…  
+            <br />
+            <span style={{ fontSize: "15px", opacity: 0.8 }}>
+              Please wait…
+            </span>
+          </p>
+
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      )}
+
       {/* MAIN CONTENT */}
       <div
         style={{
@@ -78,7 +183,7 @@ export default function AskQuestion() {
           maxWidth: "650px",
           margin: "0 auto",
           flexGrow: 1,
-          paddingBottom: "180px", // 👈 ADD THIS
+          paddingBottom: "260px",
         }}
       >
         {/* TOP MENU ICON */}
@@ -96,20 +201,18 @@ export default function AskQuestion() {
           ></div>
         </div>
 
-        {/* Greeting Section */}
+        {/* Greeting */}
         <div style={{ marginTop: "20px", textAlign: "center" }}>
           <div
             style={{
-              fontSize: "42px",
+              fontSize: "38px",
               fontWeight: "600",
               marginBottom: "10px",
               color: "#e0e0e0ff",
             }}
           >
             Hi, I'm{" "}
-            <span style={{ color: "#FF5722", fontWeight:"800" }}>
-              Doctora
-            </span>
+            <span style={{ color: "#FF5722", fontWeight: "800" }}>Doctora</span>
           </div>
 
           <p style={{ fontSize: "22px", color: "#e0e0e0ff" }}>
@@ -117,70 +220,62 @@ export default function AskQuestion() {
           </p>
         </div>
 
-        {/* Input Card */}
-        <div>
-          {/* ANSWER BOX */}
-          {answer && (
+        {/* Answer Section */}
+        {answer && (
+          <div
+            ref={answerRef}
+            style={{
+              marginTop: "30px",
+              display: "flex",
+              gap: "10px",
+              height: "42vh",
+              overflowY: "auto",
+            }}
+          >
             <div
-              ref={answerRef}
               style={{
-                marginTop: "30px",
-                display: "flex",
-                gap: "10px",
-                height: "45vh",
-                overflowY: "auto",
+                padding: "15px",
+                borderRadius: "15px",
+                maxWidth: "85%",
+                color: "#e0e0e0ff",
               }}
             >
-              <div
-                style={{
-                  padding: "15px",
-                  borderRadius: "15px",
-                  maxWidth: "85%",
-                  color: "#e0e0e0ff",
-                }}
-              >
-                <strong>Answer:</strong>
-                <br />
-                <Typewriter
-                  key={answer}
-                  words={[answer]}
-                  loop={1}
-                  typeSpeed={10}
-                  deleteSpeed={20}
-                  delaySpeed={2000}
-                  cursor
-                />
-              </div>
+              <strong>Answer:</strong>
+              <br />
+              <Typewriter
+                key={answer}
+                words={[answer]}
+                loop={1}
+                typeSpeed={10}
+                deleteSpeed={20}
+                delaySpeed={2000}
+                cursor
+              />
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* FOOTER (fixed bottom always) */}
-      {/* FIXED INPUT FOOTER */}
+      {/* FIXED INPUT CARD */}
       <div
         style={{
           position: "fixed",
-          bottom: 0,
-          left: 0,
+          bottom: "0",
+          left: "0",
           width: "100%",
-          background: "transparent",
-          padding: "20px 25px",
+          padding: "20px 20px 60px 20px",
           zIndex: 1000,
         }}
       >
-        {/* Card */}
         <div
           style={{
             backgroundColor: "#262525",
             borderRadius: "20px",
             padding: "20px 25px",
-            border: "1px solid #eaeaea",
+            border: "1px solid #eaeaea22",
             position: "relative",
-            marginBottom: "60px",
           }}
         >
-          {/* Textarea */}
           <textarea
             value={inputText}
             onChange={handleInputChange}
@@ -188,76 +283,180 @@ export default function AskQuestion() {
             style={{
               width: "100%",
               fontSize: "18px",
-              fontWeight: 500,
               border: "none",
               outline: "none",
               resize: "none",
               height: "90px",
-              color: "#e0e0e0ff",
-              fontFamily: "Inter, Poppins, sans-serif",
+              color: "#e0e0e0",
               background: "transparent",
             }}
           />
 
-          {/* Character Count */}
-          <div
-            style={{ color: "#e0e0e0ff", fontSize: "14px", marginTop: "5px" }}
-          >
+          <div style={{ color: "#e0e0e0", fontSize: "14px" }}>
             {inputText.length} / 18432
           </div>
 
-          {/* SEND BUTTON (UP ARROW) */}
+          {/* Send Button */}
+         <button
+  onClick={handleSubmit}
+  style={{
+    position: "absolute",
+    right: "20px",
+    bottom: "20px",
+    width: "55px",
+    height: "55px",
+    borderRadius: "50%",
+    backgroundColor: "#0066ff",
+    border: "none",
+    color: "#fff",
+    fontSize: "22px",
+    cursor: "pointer",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  {loading ? (
+    <div
+      style={{
+        width: "24px",
+        height: "24px",
+        border: "3px solid rgba(255,255,255,0.4)",
+        borderTopColor: "#fff",
+        borderRadius: "50%",
+        animation: "spin 0.8s linear infinite",
+      }}
+    ></div>
+  ) : (
+    "↑"
+  )}
+
+  <style>
+    {`
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `}
+  </style>
+</button>
+        </div>
+
+        {/* NAV-PILL BUTTON */}
+        <div style={{ textAlign: "center", marginTop: "18px" }}>
           <button
-            onClick={() => handleSubmit()}
+            onClick={handleNearbySearch}
             style={{
-              position: "absolute",
-              right: "20px",
-              bottom: "20px",
-              width: "55px",
-              height: "55px",
-              borderRadius: "50%",
-              backgroundColor: "#0066ff",
-              border: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              background: "transparent",
+              padding: "12px 28px",
+              borderRadius: "50px",
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "600",
+              border: "2px solid #ff5722",
               cursor: "pointer",
-              boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
             }}
           >
-            {loading ? (
-              "..."
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <path
-                  d="M12 5V19M12 5L7 10M12 5L17 10"
-                  stroke="white"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
+            🔍 Search Nearby Hospitals
           </button>
         </div>
       </div>
+
+      {/* Disclaimer */}
       <div
         style={{
-          zIndex: "99999",
           textAlign: "center",
           fontSize: "14px",
-          color: "#e0e0e0ff",
+          color: "#e0e0e0",
+          marginTop: "5px",
         }}
       >
-        Doctora is an AI, not a licensed doctor, and does not provide medical
-        advice.
+        Doctora is an AI, not a licensed doctor.
       </div>
+
+      {/* -----------------------------------------------------
+           FULL SCREEN MODAL FOR HOSPITAL LIST
+         ----------------------------------------------------- */}
+      {showModal && (
+        <div
+          onClick={() => setShowModal(false)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            height: "100vh",
+            width: "100vw",
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+            zIndex: 999999,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-end",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              height: "85vh",
+              background: "#1f1f1f",
+              borderTopLeftRadius: "25px",
+              borderTopRightRadius: "25px",
+              padding: "20px",
+              overflowY: "auto",
+              animation: "slideUp 0.3s ease-out",
+            }}
+          >
+            {/* Close Button */}
+            <div style={{ textAlign: "center", marginBottom: "10px" }}>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  background: "#333",
+                  border: "none",
+                  borderRadius: "50px",
+                  padding: "8px 20px",
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <h2 style={{ color: "#ffcc80", textAlign: "center" }}>
+              Nearby Hospitals
+            </h2>
+
+            {hospitals.map((h, i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#2d2d2d",
+                  padding: "15px",
+                  marginTop: "12px",
+                  borderRadius: "12px",
+                  border: "1px solid #444",
+                }}
+              >
+                <h3 style={{ color: "#ffcc80" }}>{h.name}</h3>
+                <p style={{ color: "#ddd" }}>{h.address}</p>
+                <p style={{ color: "#bbb" }}>Rating: ⭐ {h.rating}</p>
+
+                <a
+                  href={`https://www.google.com/maps?q=${h.lat},${h.lng}`}
+                  target="_blank"
+                  style={{ color: "#4eaaff" }}
+                  rel="noreferrer"
+                >
+                  View on Google Maps →
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
